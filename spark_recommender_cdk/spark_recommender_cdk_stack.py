@@ -32,6 +32,7 @@ class SparkRecommenderCdkStack(cdk.Stack):
         recommender_lambda = _lambda.Function(
             self, "CtpsSparkRecommenderLambda",
             runtime=_lambda.Runtime.PYTHON_3_8,
+            timeout=cdk.Duration.minutes(15),
             code=_lambda.Code.from_asset("lambda"),
             handler='recommender.handler',
             environment={
