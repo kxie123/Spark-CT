@@ -1,24 +1,51 @@
 from aws_cdk import (
-    core as cdk
-    # aws_sqs as sqs,
+    core as cdk,
+    aws_s3 as s3,
+    aws_sqs as sqs,
+    aws_lambda as _lambda,
+    aws_lambda_event_sources as les
 )
 
-# For consistency with other languages, `cdk` is the preferred import name for
-# the CDK's core module.  The following line also imports it as `core` for use
-# with examples from the CDK Developer's Guide, which are in the process of
-# being updated to use `cdk`.  You may delete this import if you don't need it.
-from aws_cdk import core
-
+BUCKET_NAME = "ctps-spark-survey-responses"
+SURVEY_OBJ = "responses/ctsp-spark-survey-responses.csv"
+#Source: https://github.com/keithrozario/Klayers/tree/master/deployments/python3.8/arns
+AWS_PANDAS_38_LAYER_ARN = "arn:aws:lambda:us-east-1:770693421928:layer:Klayers-python38-pandas:43"
 
 class SparkRecommenderCdkStack(cdk.Stack):
 
     def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # The code that defines your stack goes here
+        #Create survey response bucket with KMS encryption
+        survey_bucket = s3.Bucket(self, "SurveyResponseBucket",
+            bucket_name=BUCKET_NAME,
+            versioned=True,
+            encryption=s3.BucketEncryption.KMS_MANAGED,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            auto_delete_objects=True
+        )
+        #Create sqs queue
+        request_queue = sqs.Queue(self, "RequestQueue",
+            queue_name="CtpsSparkRecommenderRequestQueue",
+        )
+        #create recommender lambda construct
+        recommender_lambda = _lambda.Function(
+            self, "CtpsSparkRecommenderLambda",
+            runtime=_lambda.Runtime.PYTHON_3_8,
+            code=_lambda.Code.from_asset("lambda"),
+            handler='recommender.handler',
+            environment={
+                "S3_BUCKET": BUCKET_NAME,
+                "SURVEY_OBJ": SURVEY_OBJ
+            },
+            layers=[
+                _lambda.LayerVersion.from_layer_version_arn(self, "AWS_PANDAS_LAYER", AWS_PANDAS_38_LAYER_ARN),
+            ]
+        )
+        #Trigger lambda execution with SQS messsage
+        recommender_lambda.add_event_source(
+            les.SqsEventSource(request_queue)
+        ) 
+        #grant permission for lambda to read write to survey bucket
+        survey_bucket.grant_read_write(recommender_lambda)
 
-        # example resource
-        # queue = sqs.Queue(
-        #     self, "SparkRecommenderCdkQueue",
-        #     visibility_timeout=cdk.Duration.seconds(300),
-        # )
