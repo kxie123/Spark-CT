@@ -35,7 +35,7 @@ BODY_HTML = """<html>
 CHARSET = "UTF-8"
 
 log = logging.getLogger()
-log.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 def send_emails(mail_dict):

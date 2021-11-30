@@ -1,11 +1,14 @@
 import boto3
 import logging
 import argparse
-import sys
 
 REGION_NAME = "us-east-1"
 QUEUE_NAME_PREFIX = "CtpsSparkRecommenderRequestQueue"
 MESSAGE_ATTRIBUTES = dict.fromkeys(["split"])
+
+log = logging.getLogger()
+logging.basicConfig(level=logging.INFO)
+
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -14,6 +17,7 @@ def get_args():
     parser.set_defaults(split=True)
     args = parser.parse_args()
     return args
+
 
 def main():
     args = get_args()
@@ -24,6 +28,7 @@ def main():
         "StringValue": str(args.split), "DataType": "String"
     }
     sqs_client.send_message(QueueUrl=queue_url, MessageBody="Recommendation request", MessageAttributes=MESSAGE_ATTRIBUTES)
+    log.info("Message sent to {} with attributes {}".format(QUEUE_NAME_PREFIX, MESSAGE_ATTRIBUTES))
 
 
 if __name__ == "__main__":
