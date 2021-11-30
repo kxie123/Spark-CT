@@ -24,6 +24,12 @@ ordinal_grade_map = {
 }
 
 
+def delete_request(sqs_client, queue_name, request):
+    queues = sqs_client.list_queues(QueueNamePrefix=queue_name)
+    queue_url = queues["QueueUrls"][0]
+    sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=request["receiptHandle"])
+
+
 def get_file(s3_client, bucket, key):
     """Downloads file from s3 to local tmp dir.
     """
@@ -46,10 +52,6 @@ def data_clean(df):
     df["Q7"] = df["Q7"].fillna("I do not wish to disclose")
     df["Q7"] = df["Q8"].fillna("I do not wish to disclose")
     return df
-
-
-def filter_no_interest(df):
-    return df[df.Q14 != "No"]
 
 
 def jaccard_coef(a, b):

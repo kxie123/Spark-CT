@@ -3,7 +3,8 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_sqs as sqs,
     aws_lambda as _lambda,
-    aws_lambda_event_sources as les
+    aws_lambda_event_sources as les,
+    aws_iam as iam
 )
 
 BUCKET_NAME = "ctps-spark-survey-responses"
@@ -34,7 +35,7 @@ class SparkRecommenderCdkStack(cdk.Stack):
             runtime=_lambda.Runtime.PYTHON_3_8,
             timeout=cdk.Duration.minutes(15),
             code=_lambda.Code.from_asset("lambda"),
-            handler='recommender.handler',
+            handler="recommender.handler",
             environment={
                 "S3_BUCKET": BUCKET_NAME,
                 "SURVEY_OBJ": SURVEY_OBJ
@@ -47,6 +48,27 @@ class SparkRecommenderCdkStack(cdk.Stack):
         recommender_lambda.add_event_source(
             les.SqsEventSource(request_queue)
         ) 
+        #Allow lambda to delete bad request
+        recommender_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "sqs:ListQueues",
+                    "sqs:DeleteMessage"
+                ],
+                resources=["*"]
+            )
+        )
+        recommender_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "ses:SendEmail",
+                    "ses:SendRawEmail",
+                    "ses:SendTemplatedEmail"
+                ],
+                resources=["*"]
+            )
+        )
         #grant permission for lambda to read write to survey bucket
         survey_bucket.grant_read_write(recommender_lambda)
-
